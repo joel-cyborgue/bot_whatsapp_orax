@@ -1,0 +1,31 @@
+{
+  "name": "orax_bot",
+  "version": "0.0.1",
+  "description": "bot de motivation equipe orax !",
+  "keywords": [
+    "bot",
+    "motivation",
+    "equipe"
+  ],
+  "homepage": "https://github.com/joel-cyborgue/bot_motive#readme",
+  "bugs": {
+    "url": "https://github.com/joel-cyborgue/bot_motive/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joel-cyborgue/bot_motive.git"
+  },
+  "license": "MIT",
+  "author": "Joel D.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "orax": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "node-cron": "^4.2.1",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.31.0"
+  }
+}

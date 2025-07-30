@@ -1,0 +1,37 @@
+2025/07/30-18:33:35.177 1808 Reusing MANIFEST C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/07/30-18:33:35.178 1808 Recovering log #628
+2025/07/30-18:33:35.219 1808 Reusing old log C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000628.log 
+2025/07/30-18:33:39.029 1808 Level-0 table #643: started
+2025/07/30-18:33:39.061 1808 Level-0 table #643: 1511002 bytes OK
+2025/07/30-18:33:39.065 1808 Delete type=0 #628
+2025/07/30-18:33:39.066 1808 Manual compaction at level-0 from '\x00<\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00=\x00\x00\x00' @ 0 : 0; will stop at '\x00<\x00\x00\x05' @ 2240802 : 1
+2025/07/30-18:33:39.066 1808 Compacting 1@0 + 0@1 files
+2025/07/30-18:33:39.091 1808 Generated table #644@0: 22504 keys, 537256 bytes
+2025/07/30-18:33:39.091 1808 Compacted 1@0 + 0@1 files => 537256 bytes
+2025/07/30-18:33:39.094 1808 compacted to: files[ 0 1 10 0 0 0 0 ]
+2025/07/30-18:33:39.094 1808 Delete type=2 #643
+2025/07/30-18:33:39.095 1808 Manual compaction at level-0 from '\x00<\x00\x00\x05' @ 2240802 : 1 .. '\x00=\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/07/30-18:33:40.367 4b5c Compacting 1@1 + 10@2 files
+2025/07/30-18:33:40.452 4b5c Generated table #645@1: 87914 keys, 2239099 bytes
+2025/07/30-18:33:40.518 4b5c Generated table #646@1: 50772 keys, 2242328 bytes
+2025/07/30-18:33:40.553 4b5c Generated table #647@1: 10589 keys, 2159523 bytes
+2025/07/30-18:33:40.583 4b5c Generated table #648@1: 1735 keys, 2143157 bytes
+2025/07/30-18:33:40.602 4b5c Generated table #649@1: 1172 keys, 2134310 bytes
+2025/07/30-18:33:40.650 4b5c Generated table #650@1: 14528 keys, 2194927 bytes
+2025/07/30-18:33:40.705 4b5c Generated table #651@1: 27328 keys, 2237015 bytes
+2025/07/30-18:33:40.738 4b5c Generated table #652@1: 4392 keys, 2122939 bytes
+2025/07/30-18:33:40.844 4b5c Generated table #653@1: 58793 keys, 2196242 bytes
+2025/07/30-18:33:40.912 4b5c Generated table #654@1: 91188 keys, 2056325 bytes
+2025/07/30-18:33:40.912 4b5c Compacted 1@1 + 10@2 files => 21725865 bytes
+2025/07/30-18:33:40.915 4b5c compacted to: files[ 0 0 10 0 0 0 0 ]
+2025/07/30-18:33:40.916 4b5c Delete type=2 #631
+2025/07/30-18:33:40.916 4b5c Delete type=2 #632
+2025/07/30-18:33:40.916 4b5c Delete type=2 #633
+2025/07/30-18:33:40.916 4b5c Delete type=2 #634
+2025/07/30-18:33:40.916 4b5c Delete type=2 #635
+2025/07/30-18:33:40.916 4b5c Delete type=2 #636
+2025/07/30-18:33:40.916 4b5c Delete type=2 #637
+2025/07/30-18:33:40.916 4b5c Delete type=2 #638
+2025/07/30-18:33:40.916 4b5c Delete type=2 #639
+2025/07/30-18:33:40.916 4b5c Delete type=2 #640
+2025/07/30-18:33:40.916 4b5c Delete type=2 #644
