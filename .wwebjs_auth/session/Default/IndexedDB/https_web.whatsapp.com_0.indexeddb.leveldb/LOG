@@ -1,38 +1,4 @@
-2025/07/30-18:37:36.158 351c Reusing MANIFEST C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2025/07/30-18:37:36.158 351c Recovering log #642
-2025/07/30-18:37:36.191 351c Reusing old log C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000642.log 
-2025/07/30-18:37:37.880 351c Level-0 table #657: started
-2025/07/30-18:37:37.919 351c Level-0 table #657: 1220476 bytes OK
-2025/07/30-18:37:37.922 351c Delete type=0 #642
-2025/07/30-18:37:37.923 351c Manual compaction at level-0 from '\x00=\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00>\x00\x00\x00' @ 0 : 0; will stop at '\x00=\x00\x00\x05' @ 2273102 : 1
-2025/07/30-18:37:37.923 351c Compacting 1@0 + 0@1 files
-2025/07/30-18:37:37.948 351c Generated table #658@0: 19052 keys, 573997 bytes
-2025/07/30-18:37:37.948 351c Compacted 1@0 + 0@1 files => 573997 bytes
-2025/07/30-18:37:37.951 351c compacted to: files[ 0 1 10 0 0 0 0 ]
-2025/07/30-18:37:37.951 351c Delete type=2 #657
-2025/07/30-18:37:37.952 351c Manual compaction at level-0 from '\x00=\x00\x00\x05' @ 2273102 : 1 .. '\x00>\x00\x00\x00' @ 0 : 0; will stop at (end)
-2025/07/30-18:37:39.347 2a58 Compacting 1@1 + 10@2 files
-2025/07/30-18:37:39.445 2a58 Generated table #659@1: 88298 keys, 2238985 bytes
-2025/07/30-18:37:39.528 2a58 Generated table #660@1: 51613 keys, 2245078 bytes
-2025/07/30-18:37:39.572 2a58 Generated table #661@1: 12696 keys, 2161189 bytes
-2025/07/30-18:37:39.607 2a58 Generated table #662@1: 1831 keys, 2150574 bytes
-2025/07/30-18:37:39.630 2a58 Generated table #663@1: 1028 keys, 2133275 bytes
-2025/07/30-18:37:39.675 2a58 Generated table #664@1: 13080 keys, 2188167 bytes
-2025/07/30-18:37:39.739 2a58 Generated table #665@1: 28611 keys, 2243676 bytes
-2025/07/30-18:37:39.758 2a58 Generated table #666@1: 3979 keys, 2120389 bytes
-2025/07/30-18:37:39.815 2a58 Generated table #667@1: 49387 keys, 2184282 bytes
-2025/07/30-18:37:39.919 2a58 Generated table #668@1: 100310 keys, 2250248 bytes
-2025/07/30-18:37:39.926 2a58 Generated table #669@1: 1489 keys, 42988 bytes
-2025/07/30-18:37:39.926 2a58 Compacted 1@1 + 10@2 files => 21958851 bytes
-2025/07/30-18:37:39.930 2a58 compacted to: files[ 0 0 11 0 0 0 0 ]
-2025/07/30-18:37:39.931 2a58 Delete type=2 #645
-2025/07/30-18:37:39.931 2a58 Delete type=2 #646
-2025/07/30-18:37:39.931 2a58 Delete type=2 #647
-2025/07/30-18:37:39.931 2a58 Delete type=2 #648
-2025/07/30-18:37:39.932 2a58 Delete type=2 #649
-2025/07/30-18:37:39.932 2a58 Delete type=2 #650
-2025/07/30-18:37:39.932 2a58 Delete type=2 #651
-2025/07/30-18:37:39.932 2a58 Delete type=2 #652
-2025/07/30-18:37:39.933 2a58 Delete type=2 #653
-2025/07/30-18:37:39.933 2a58 Delete type=2 #654
-2025/07/30-18:37:39.933 2a58 Delete type=2 #658
+2025/07/31-12:12:42.809 2878 Reusing MANIFEST C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/07/31-12:12:42.810 2878 Recovering log #1012
+2025/07/31-12:12:42.819 2878 Reusing old log C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/001012.log 
+2025/07/31-12:12:44.326 5f68 Manual compaction at level-0 from '\x00J\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00K\x00\x00\x00' @ 0 : 0; will stop at (end)

@@ -2,29 +2,28 @@ import 'dotenv/config';
 import qrcode from 'qrcode-terminal';
 import cron from 'node-cron';
 import pkg from 'whatsapp-web.js';
+import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const { Client, LocalAuth, MessageMedia } = pkg;
 
-// Pour gérer __dirname en ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-//==================================================== MESSAGES ======================================================//
-const messages = [
-  "📌 Tips du jour : 📚 Un modèle de classification, c’est comme un gardien qui voit une image et dit : 'toi 🐶 à gauche, toi 🐱 à droite'. Il apprend ça avec des exemples !",
-  "📌 Tips du jour : 🧠 L’intelligence artificielle, c’est un cerveau numérique qui apprend comme toi en cours : plus il voit, plus il comprend !",
-  "📌 Tips du jour : 🤖 Le machine learning, c’est quand un ordi apprend à reconnaître des choses sans qu’on lui explique chaque détail. Comme deviner le héros d’un film juste avec une scène !",
-  "📌 Tips du jour : 🧬 Un neurone artificiel, c’est une mini-calculette. Plein ensemble ? Ça donne un super cerveau IA 💡",
-  "📌 Tips du jour : 💤 L’IA ne dort jamais, mais elle a besoin de données comme toi d’entraînement. Pas de data = pas de progrès 📉",
-  "📌 Tips du jour : 👁️ La vision par ordinateur, c’est des yeux pour les machines. Montre-lui un chat 🐈, elle dit 'chat'. Show must go on !",
+const scheduledMessages = [
+  "🌞 Nouveau jour, nouveau défi ! Tu vas briller 💡",
+  "📌 N’oublie pas : apprendre l’IA, c’est comme muscler ton cerveau.",
+  "🚀 Reste curieux, tout commence par une question.",
+  "🤖 L’avenir appartient à ceux qui codent tôt !"
 ];
-//==================================================== MESSAGES ======================================================//
 
-// const groupName = 'TTECH™ |  Général';
-const groupName = 'Orax_test';
+
+//================== CONFIG ==================//
+const groupName = 'Orax_test'; // ← à adapter si besoin
+const chatHistory = {}; // Historique de chaque groupe pour le contexte IA
+//================== CONFIG ==================//
 
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -35,48 +34,63 @@ const client = new Client({
   }
 });
 
-// QR code à scanner à la première exécution uniquement
+//== QR code à scanner une seule fois ==
 client.on('qr', qr => {
   console.log('📲 Scanner ce QR code avec WhatsApp :');
   qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
-  console.log('✅ Client WhatsApp prêt !');
-
-  // Envoi quotidien à 8h GMT
-  cron.schedule('*/1 * * * *', async () => {
-    try {
-      const message = '[ orax - bot ] ' + messages[Math.floor(Math.random() * messages.length)];
-      const chats = await client.getChats();
-      const group = chats.find(chat => chat.isGroup && chat.name === groupName);
-
-      if (!group) {
-        console.log(`❌ Groupe "${groupName}" non trouvé.`);
-        return;
-      }
-
-      // Choisir une image aléatoire
-      const mediaDir = path.join(__dirname, 'media/tips');
-      const images = fs.readdirSync(mediaDir).filter(file => /\.(jpg|jpeg|png|webp)$/i.test(file));
-      
-      if (images.length === 0) {
-        console.error('❌ Aucune image trouvée dans le dossier media.');
-        return;
-      }
-
-      const randomImage = images[Math.floor(Math.random() * images.length)];
-      const imagePath = path.join(mediaDir, randomImage);
-
-      const media = MessageMedia.fromFilePath(imagePath);
-      await client.sendMessage(group.id._serialized, media, { caption: message });
-      console.log(`[BOT ORAX] ✅ Message + image "${randomImage}" envoyés dans "${groupName}"`);
-    } catch (err) {
-      console.error('❌ Erreur lors de l’envoi du message :', err);
-    }
-  });
+  console.log('✅ Bot prêt, connecté à WhatsApp.');
 });
 
+//======== Message IA avec mémoire =========//
+client.on('message', async message => {
+  if (!message.fromMe && message.body.startsWith('!ask')) {
+    const groupId = message.from;
+    const question = message.body.replace('!ask', '').trim();
+
+    if (!question) {
+      await message.reply("❌ Pose une vraie question après `!ask`.");
+      return;
+    }
+
+    if (!chatHistory[groupId]) chatHistory[groupId] = [];
+    chatHistory[groupId].push({ role: 'user', content: question });
+
+    // Ne garde que les 6 derniers échanges
+    if (chatHistory[groupId].length > 6) {
+      chatHistory[groupId] = chatHistory[groupId].slice(-6);
+    }
+
+    const prompt = chatHistory[groupId]
+      .map(m => m.role === 'user' ? `Utilisateur: ${m.content}` : `Bot: ${m.content}`)
+      .join('\n') + `\nBot:`;
+
+    try {
+      const res = await fetch('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mistral',
+          prompt,
+          stream: false
+        })
+      });
+
+      const data = await res.json();
+      const reply = data.response.trim();
+      chatHistory[groupId].push({ role: 'bot', content: reply });
+
+      await message.reply("🤖 " + reply);
+    } catch (err) {
+      console.error("❌ Erreur Mistral:", err);
+      await message.reply("❌ Erreur avec Mistral.");
+    }
+  }
+});
+
+//====== Déconnexion & Auth ======//
 client.on('auth_failure', msg => {
   console.error('❌ Échec d’authentification :', msg);
 });
@@ -86,3 +100,6 @@ client.on('disconnected', reason => {
 });
 
 client.initialize();
+
+//const scheduleDynamic = require('./dynamicScheduler');
+//scheduleDynamic(client);
