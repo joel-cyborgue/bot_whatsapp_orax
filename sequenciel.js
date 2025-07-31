@@ -17,7 +17,6 @@ const __dirname = path.dirname(__filename);
 const messages = [
   //"📢 Info quizz 🧠:  A partir de demain suivez un mini quizz lancé le matin à 7H00 et corrigé à 18H00 ! Réagissez avec 🟣🔴🟡🟢 correspondant à la bonne réponse.",
   //"📌 Tips du jour : 🧠 L’intelligence artificielle, c’est un cerveau numérique qui apprend comme toi en cours : plus il voit, plus il comprend !",
-
   "❓ Quizz 1 – À quoi sert la broche GND sur Arduino ?\n🟣 Alimenter un capteur\n🔴 Envoyer des données\n🟡 Se connecter à la masse électrique\n🟢 Contrôler un moteur",
   "❓ Quizz 2 – Que fait une résistance ?\n🟣 Accumule l’énergie\n🔴 Limite le courant électrique\n🟡 Interrompt le circuit\n🟢 Amplifie le signal",
   "❓ Quizz 3 – Quelle est la vitesse standard de Serial.begin ?\n🟣 4800 bauds\n🔴 9600 bauds\n🟡 14400 bauds\n🟢 115200 bauds",
