@@ -1,3 +1,6 @@
-2025/07/31-13:48:08.943 2e4 Reusing MANIFEST C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
-2025/07/31-13:48:08.949 2e4 Recovering log #19
-2025/07/31-13:48:08.952 2e4 Reusing old log C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\Local Storage\leveldb/000019.log 
+2025/07/31-18:15:27.273 d7c Reusing MANIFEST C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
+2025/07/31-18:15:27.282 d7c Recovering log #23
+2025/07/31-18:15:27.286 d7c Reusing old log C:\Users\HP\Desktop\ORAX - TTECH\ORAX-BOT\.wwebjs_auth\session\Default\Local Storage\leveldb/000023.log 
+2025/07/31-21:45:42.447 129c Level-0 table #27: started
+2025/07/31-21:45:42.464 129c Level-0 table #27: 13964 bytes OK
+2025/07/31-21:45:42.471 129c Delete type=0 #23
