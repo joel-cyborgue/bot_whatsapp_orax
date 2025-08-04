@@ -50,7 +50,7 @@ const messages = [
 //==================================================== MESSAGES ======================================================//
 
 // const groupName = 'TTECH™ |  Général';
-const groupName = 'Orax_test';
+const groupName = 'TTECH™ |  Général';
 
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -71,7 +71,7 @@ client.on('ready', () => {
   console.log('✅ Client WhatsApp prêt !');
 
   // Envoi quotidien à 8h GMT
-  cron.schedule('*/2 * * * *', async () => {
+  cron.schedule('0 7 * * *', async () => {
     try {
       const message = '[ orax - bot ] ' + messages[Math.floor(Math.random() * messages.length)];
       const chats = await client.getChats();
@@ -96,7 +96,7 @@ client.on('ready', () => {
 
       const media = MessageMedia.fromFilePath(imagePath);
       await client.sendMessage(group.id._serialized, media, { caption: message });
-      console.log(`[BOT ORAX] ✅ Message + image "${randomImage}" envoyés dans "${groupName}"`);
+      console.log(`[ orax - bot ] ✅ Message + image "${randomImage}" envoyés dans "${groupName}"`);
     } catch (err) {
       console.error('❌ Erreur lors de l’envoi du message :', err);
     }
@@ -134,10 +134,11 @@ client.on('message', async message => {
       });
 
       const data = await res.json();
-      await message.reply("🤖 " + data.response.trim());
+      await message.reply("[ orax - bot ]🤖 " + data.response.trim());
     } catch (err) {
       console.error("Erreur:", err);
       await message.reply("❌ Erreur en appelant Mistral.");
     }
+  }else if (!message.fromMe) { // mettre tout message recu dans un fichier json
   }
 });
