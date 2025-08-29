@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Jauge • Débit de connexion</title>
+<style>
+  :root{
+    --bg: #000000;            /* fond totalement noir */
+    --rose-pale: #f65797;    /* accent rose pâle */
+    --rose-opaque: #f8accb;  /* accent légèrement plus vif */
+    --muted: #9aa0a6;        /* texte secondaire */
+    --glass: rgba(255, 13, 13, 0.13);
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background:var(--bg);
+    color:var(--rose-pale);
+    font-family: Inter, "Segoe UI", Roboto, system-ui, -apple-system, "Helvetica Neue", Arial;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .card{
+    width:min(480px, 92vw);
+    padding:28px;
+    border-radius:14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    box-shadow: 0 8px 30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.02);
+    display:flex;
+    gap:18px;
+    align-items:center;
+    justify-content:space-between;
+    flex-direction:column;
+  }
+
+  h1{
+    margin:0 0 6px 0;
+    font-size:18px;
+    font-weight:600;
+    color:var(--rose-pale);
+    letter-spacing:0.2px;
+  }
+  p.subtitle{
+    margin:0;
+    color:var(--muted);
+    font-size:13px;
+  }
+
+  /* Container for the gauge */
+  .gauge-wrap{
+    width:260px;
+    height:260px;
+    display:grid;
+    place-items:center;
+    position:relative;
+  }
+
+  /* SVG is responsive */
+  svg{
+    width:100%;
+    height:100%;
+    transform:rotate(-90deg); /* rotate so 0% is at top */
+    overflow:visible;
+  }
+
+  /* Numeric readout in middle */
+  .readout{
+    position:absolute;
+    text-align:center;
+    transform:translateY(6px);
+    color:var(--rose-pale);
+  }
+
+  .readout .value{
+    display:block;
+    font-size:44px;
+    font-weight:700;
+    line-height:1;
+    color:var(--rose-pale);
+    text-shadow: 0 2px 12px rgba(214, 47, 113, 0.08);
+  }
+  .readout .unit{
+    display:block;
+    margin-top:6px;
+    font-size:12px;
+    color:var(--muted);
+    font-weight:600;
+    letter-spacing:0.8px;
+  }
+
+  /* small controls */
+  .controls{
+    display:flex;
+    gap:8px;
+    margin-top:6px;
+  }
+  button{
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.06);
+    color:var(--rose-pale);
+    padding:8px 12px;
+    border-radius:10px;
+    font-weight:600;
+    cursor:pointer;
+    backdrop-filter: blur(6px);
+  }
+  button:hover{
+    border-color:var(--rose-opaque);
+    box-shadow: 0 6px 18px rgba(255,158,196,0.06);
+  }
+
+  /* small ticks around the gauge (drawn in SVG) */
+  .legend{
+    width:100%;
+    display:flex;
+    justify-content:space-between;
+    margin-top:8px;
+    color:var(--muted);
+    font-size:13px;
+    font-weight:600;
+  }
+
+  /* responsive smaller screens */
+  @media (max-width:420px){
+    .card{ padding:18px; width:94vw;}
+    .readout .value{ font-size:36px;}
+    .gauge-wrap{ width:220px; height:220px;}
+  }
+</style>
+</head>
+<body>
+  <div class="card" role="application" aria-label="Jauge de débit de connexion">
+    <div style="text-align:center; width:100%;">
+      <h1>Débit de connexion</h1>
+      <p class="subtitle">Lecture en temps réel — animation 0 → 100%</p>
+    </div>
+
+    <div class="gauge-wrap" id="gaugeWrap">
+      <!-- SVG gauge -->
+      <svg viewBox="0 0 200 200" role="img" aria-label="Jauge ronde indiquant le pourcentage">
+        <!-- background ring -->
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#f6c0d6" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#f65797" stop-opacity="0.95"/>
+          </linearGradient>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        <!-- outer tick marks group (rotated by JS so tick 0 on top) -->
+        <g id="ticks" transform="translate(100,100)"></g>
+
+        <!-- base circle (track) -->
+        <circle cx="100" cy="100" r="72" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="18"/>
+
+        <!-- progress arc -->
+        <circle id="progress"
+                cx="100" cy="100" r="72"
+                fill="none"
+                stroke="url(#g1)" stroke-width="18"
+                stroke-linecap="round"
+                stroke-das
+                harray="452.39" stroke-dashoffset="452.39"
+                style="filter: url(#glow);"/>
+
+        <!-- center decorative inner circle -->
+        <circle cx="100" cy="100" r="52" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
+      </svg>
+
+      <!-- numeric readout -->
+      <div class="readout" aria-live="polite">
+        <span class="value" id="value">0%</span>
+        <span class="unit">Utilisation</span>
+      </div>
+    </div>
+
+    <div style="width:100%; display:flex; align-items:center; justify-content:space-between;">
+      <div class="legend" aria-hidden="true">
+        <span>0%</span>
+        <span>25%</span>
+        <span>50%</span>
+        <span>75%</span>
+        <span>100%</span>
+      </div>
+
+      <div class="controls" style="justify-self:end;">
+        <button id="replayBtn" title="Relancer l'animation">Relancer</button>
+        <button id="randomBtn" title="Simuler valeur aléatoire">Simuler</button>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/*
+  Jauge circulaire simple avec animation 0 → 100%
+  - Utilise stroke-dashoffset pour animer l'arc.
+  - Circumference = 2πr. r = 72 => circumference = ~452.389
+  - Le SVG est rotationné via CSS (transform: rotate(-90deg)), donc 0% commence en haut.
+*/
+
+(function(){
+  const progress = document.getElementById('progress');
+  const valueEl = document.getElementById('value');
+  const replayBtn = document.getElementById('replayBtn');
+  const randomBtn = document.getElementById('randomBtn');
+
+  const radius = 72;
+  const circ = 2 * Math.PI * radius; // ≈452.389
+  progress.style.strokeDasharray = circ.toFixed(2);
+  // start fully hidden:
+  progress.style.strokeDashoffset = circ.toFixed(2);
+
+  // draw tick marks programmatically (minor and major ticks)
+  (function drawTicks(){
+    const ticksGroup = document.getElementById('ticks');
+    const total = 100; // we will create ticks for each 5% step (20 ticks)
+    const majorStep = 25; // show slightly different ticks for 0,25,50,75,100
+    const ticksCount = 40; // more ticks for nicer gradation
+    const outer = 88; // distance from center for tick start
+    const innerMajor = 72; // inner for major tick
+    const innerMinor = 78; // inner for minor tick
+    for (let i=0;i<ticksCount;i++){
+      const angle = (i / ticksCount) * 360; // around circle
+      const rad = (angle - 90) * Math.PI/180; // -90 to align top
+      const isMajor = (i % (ticksCount/4) === 0);
+      const x1 = Math.cos(rad) * outer;
+      const y1 = Math.sin(rad) * outer;
+      const x2 = Math.cos(rad) * (isMajor ? innerMajor : innerMinor);
+      const y2 = Math.sin(rad) * (isMajor ? innerMajor : innerMinor);
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.setAttribute("stroke", isMajor ? "rgba(246,192,214,0.95)" : "rgba(255,255,255,0.1)");
+      line.setAttribute("stroke-width", isMajor ? "2.2" : "1");
+      line.setAttribute("stroke-linecap", "round");
+      ticksGroup.appendChild(line);
+    }
+  })();
+
+  // animate from current % to target %
+  function animateTo(targetPercent = 100, durationMs = 4000){
+    const startOffset = parseFloat(progress.style.strokeDashoffset);
+    const startPercent = Math.round((1 - startOffset / circ) * 100);
+    const from = startPercent;
+    const to = Math.max(0, Math.min(100, Math.round(targetPercent)));
+    const startTime = performance.now();
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+    return new Promise(resolve => {
+      function frame(now){
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / durationMs);
+        const eased = easeOutCubic(t);
+        const current = from + (to - from) * eased;
+        const offset = circ * (1 - (current/100));
+        progress.style.strokeDashoffset = offset.toFixed(2);
+        valueEl.textContent = Math.round(current) + "%";
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          resolve();
+        }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  // on load: animate 0 -> 100 in 5s
+  // ensure starting state is 0
+  progress.style.strokeDashoffset = circ.toFixed(2);
+  valueEl.textContent = "0%";
+  // slight delay to make the effect visible
+  setTimeout(()=> animateTo(100, 5000), 250);
+
+  // controls
+  replayBtn.addEventListener('click', ()=>{
+    // reset to 0 immediately then animate
+    progress.style.transition = "";
+    progress.style.strokeDashoffset = circ.toFixed(2);
+    valueEl.textContent = "0%";
+    // small timeout to allow DOM to update before anim
+    setTimeout(()=> animateTo(100, 4000), 60);
+  });
+
+  randomBtn.addEventListener('click', async ()=>{
+    // pick a random percent and animate to it
+    const rand = Math.floor(Math.random() * 101);
+    await animateTo(rand, 1500 + Math.abs(rand - (parseInt(valueEl.textContent)||0)) * 10);
+  });
+
+  // expose a function in case you want to update from outside (console)
+  window.jaugeSet = function(pct, duration=1000){
+    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    return animateTo(pct, duration);
+  };
+
+})();
+</script>
+</body>
+</html>

@@ -18,9 +18,9 @@ const messages = [
   //"❓ Quizz 1 – À quoi sert la broche GND sur Arduino ?\n🟣 Alimenter un capteur\n🔴 Envoyer des données\n🟡 Se connecter à la masse électrique\n🟢 Contrôler un moteur",
   //"❓ Quizz 2 – Que fait une résistance ?\n🟣 Accumule l’énergie\n🔴 Limite le courant électrique\n🟡 Interrompt le circuit\n🟢 Amplifie le signal",
   //"❓ Quizz 3 – Quelle est la vitesse standard de Serial.begin ?\n🟣 4800 bauds\n🔴 9600 bauds\n🟡 14400 bauds\n🟢 115200 bauds",
-  "❓ Quizz 4 – Quel composant stocke une charge électrique ?\n🟣 Diode\n🔴 Transistor\n🟡 Condensateur\n🟢 LED",
+  //"❓ Quizz 4 – Quel composant stocke une charge électrique ?\n🟣 Diode\n🔴 Transistor\n🟡 Condensateur\n🟢 LED",
   "❓ Quizz 5 – À quoi sert la fonction delay() sur Arduino ?\n🟣 Boucler le programme\n🔴 Attendre un certain temps\n🟡 Lancer le bootloader\n🟢 Lire un capteur",
-  "❓ Quizz 6 – L’IA apprend à partir de :\n🟣 Prières\n🔴 Règles fixes\n🟡 Données\n🟢 Mots-clés",
+  //"❓ Quizz 6 – L’IA apprend à partir de :\n🟣 Prières\n🔴 Règles fixes\n🟡 Données\n🟢 Mots-clés",
   "❓ Quizz 7 – Un neurone artificiel :\n🟣 Est une cellule biologique\n🔴 Traite un signal d’entrée\n🟡 Est un microcontrôleur\n🟢 Est une diode",
   "❓ Quizz 8 – Le machine learning sert à :\n🟣 Prédire à partir d’exemples\n🔴 Compiler un programme\n🟡 Recharger des batteries\n🟢 Refroidir les circuits",
   "❓ Quizz 9 – Le deep learning utilise :\n🟣 Des transistors\n🔴 Des capteurs de mouvement\n🟡 Des réseaux de neurones profonds\n🟢 Des batteries au lithium",
@@ -81,10 +81,10 @@ client.on('qr', qr => {
 
 client.on('ready', () => {
   console.log('✅ Client WhatsApp prêt !');
-  cron.schedule('30 19 * * *', async () => {
+  cron.schedule('30 9 * * *', async () => {
     try {
-      const message = '[ orax - bot ] ' + reponses[currentIndex] + "\n Vous pouvez me poser des question en tapant d'abord !ask";
-      currentIndex = (currentIndex + 1) % reponses.length; // Boucle circulaire
+      const message = '[ orax - bot ] ' + messages[currentIndex] + "\n Vous pouvez me poser des question en tapant d'abord !ask";
+      currentIndex = (currentIndex + 1) % messages.length; // Boucle circulaire
 
       const chats = await client.getChats();
       const group = chats.find(chat => chat.isGroup && chat.name === groupName);
@@ -153,10 +153,10 @@ client.on('message', async message => {
       };
 
       const filePath = path.join(__dirname, 'memoire.json');
-      let reponses = [];
+      let messages = [];
 
       if (fs.existsSync(filePath)) {
-        reponses = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        messages = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       }
 
       messages.push(chatData);

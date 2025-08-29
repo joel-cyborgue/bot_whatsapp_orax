@@ -1,0 +1,475 @@
+// orax-bot.mjs
+// --- Dépendances ---
+// npm i whatsapp-web.js qrcode-terminal node-cron dotenv
+// (Node 18+ conseillé pour fetch intégré)
+
+import 'dotenv/config';
+import qrcode from 'qrcode-terminal';
+import cron from 'node-cron';
+import pkg from 'whatsapp-web.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const { Client, LocalAuth, MessageMedia } = pkg;
+
+// --- Constantes & Config ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Nom exact du groupe cible
+const GROUP_NAME = process.env.ORAX_GROUP_NAME || 'TTECH™ |  Général';
+
+// Dossier médias (images pour les tips)
+const MEDIA_TIPS_DIR = path.join(__dirname, 'media', 'tips');
+
+// Dossier de stockage pour l'historique et l'état
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+// Paramètres d’autonomie
+const TZ = 'Africa/Lome';
+const ACTIVE_HOURS = { start: 8, end: 22 }; // heure locale : interventions seulement entre 08h et 22h
+const SILENCE_MINUTES = Number(process.env.ORAX_SILENCE_MIN || 60);
+const QUESTION_GRACE_MINUTES = Number(process.env.ORAX_Q_GRACE_MIN || 20);
+const SILENCE_NUDGE_COOLDOWN_MIN = Number(process.env.ORAX_SILENCE_COOLDOWN_MIN || 180); // éviter de spammer relances
+const MAX_CONTEXT_MESSAGES = Number(process.env.ORAX_MAX_CONTEXT || 25);
+const OLLAMA_URL = process.env.ORAX_OLLAMA_URL || 'http://localhost:11434/api/generate';
+const PUPPETEER_EXECUTABLE = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+
+// Messages d’animation
+const DAILY_MESSAGES = [
+  "📌 Tips du jour : 🌍 Tu veux changer le monde ? Apprends à parler IA. C’est elle qui pilotera les systèmes de demain !",
+  "📌 Tips du jour : 🚀 Pas besoin d’être un génie pour commencer l’IA. Juste un peu de curiosité et de passion. Go go go !",
+  "📌 Le savais-tu ? 🤖 Je ne suis pas humain, je suis le bot de la communauté TTECH programmé par orax !"
+];
+
+// --- État en RAM ---
+// Contexte récent par groupe (file FIFO limitée)
+const recentContext = new Map(); // groupId -> [{from, body, ts}]
+const lastActivity = new Map(); // groupId -> timestamp (ms)
+const lastSilenceNudgeAt = new Map(); // groupId -> timestamp (ms)
+const pendingQuestions = new Map(); // groupId -> [{ id, author, body, askedAt }]
+const spamTracker = new Map(); // key (groupId|author) -> { lastBodies: string[], lastTs: number[], warnedAt? }
+
+// --- Utilitaires ---
+const now = () => new Date();
+const ms = (min) => min * 60 * 1000;
+const todayISO = () => new Date().toISOString().slice(0,10);
+const historyFileFor = (dateIso = todayISO()) => path.join(DATA_DIR, `history-${dateIso}.json`);
+const stateFile = path.join(DATA_DIR, `state.json`);
+
+function withinActiveHours(date = new Date()) {
+  const h = date.getHours();
+  return h >= ACTIVE_HOURS.start && h < ACTIVE_HOURS.end;
+}
+
+function ensureArray(map, key) {
+  if (!map.has(key)) map.set(key, []);
+  return map.get(key);
+}
+
+function pushContext(groupId, entry) {
+  const arr = ensureArray(recentContext, groupId);
+  arr.push(entry);
+  if (arr.length > MAX_CONTEXT_MESSAGES) arr.splice(0, arr.length - MAX_CONTEXT_MESSAGES);
+}
+
+function saveJSONSafe(file, data) {
+  try {
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('⚠️ Erreur d’écriture JSON', file, e.message);
+  }
+}
+
+function appendHistory(groupId, item) {
+  const file = historyFileFor();
+  let data = {};
+  if (fs.existsSync(file)) {
+    try { data = JSON.parse(fs.readFileSync(file, 'utf-8')); } catch {}
+  }
+  if (!data[groupId]) data[groupId] = [];
+  data[groupId].push(item);
+  saveJSONSafe(file, data);
+}
+
+async function ensureFetch() {
+  if (typeof fetch === 'function') return fetch;
+  // Node < 18 fallback
+  const mod = await import('node-fetch');
+  return mod.default;
+}
+
+function humanSince(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return `${h}h${rm ? rm : ''}`;
+}
+
+// --- Client WhatsApp ---
+const client = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    executablePath: PUPPETEER_EXECUTABLE,
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  }
+});
+
+// QR au premier lancement
+client.on('qr', qr => {
+  console.log('📲 Scanner ce QR code avec WhatsApp :');
+  qrcode.generate(qr, { small: true });
+});
+
+// État & planification une fois prêt
+client.on('ready', async () => {
+  console.log('✅ Client WhatsApp prêt !');
+
+  // Récupération du groupe cible
+  const chats = await client.getChats();
+  const group = chats.find(c => c.isGroup && c.name === GROUP_NAME);
+  if (!group) {
+    console.error(`❌ Groupe "${GROUP_NAME}" non trouvé. Vérifie le nom exact.`);
+  } else {
+    console.log(`📣 Suivi du groupe : ${GROUP_NAME} (${group.id._serialized})`);
+  }
+
+  // CRON : Tips quotidiens avec image — 08:01 Africa/Lome
+  cron.schedule('1 8 * * *', async () => {
+    if (!group) return;
+    try {
+      const tip = '[ orax - bot ] ' + DAILY_MESSAGES[Math.floor(Math.random() * DAILY_MESSAGES.length)]
+        + '\nVous pouvez poser des questions précédées de !ask — je réponds avec l’IA.';
+      let mediaSent = false;
+      if (fs.existsSync(MEDIA_TIPS_DIR)) {
+        const images = fs.readdirSync(MEDIA_TIPS_DIR).filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+        if (images.length > 0) {
+          const img = images[Math.floor(Math.random() * images.length)];
+          const media = MessageMedia.fromFilePath(path.join(MEDIA_TIPS_DIR, img));
+          await client.sendMessage(group.id._serialized, media, { caption: tip });
+          mediaSent = true;
+          console.log(`[ orax - bot ] ✅ Tip + image "${img}" envoyés.`);
+        }
+      }
+      if (!mediaSent) {
+        await client.sendMessage(group.id._serialized, tip);
+        console.log(`[ orax - bot ] ✅ Tip (sans image) envoyé.`);
+      }
+    } catch (e) {
+      console.error('❌ Erreur envoi tip :', e.message);
+    }
+  }, { timezone: TZ });
+
+  // CRON : Résumé du jour — 21:00 Africa/Lome
+  cron.schedule('0 21 * * *', async () => {
+    if (!group) return;
+    try {
+      const file = historyFileFor();
+      if (!fs.existsSync(file)) return;
+      const dayData = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      const history = dayData[group.id._serialized] || [];
+      if (history.length === 0) return;
+
+      const last24 = history.slice(-300); // borne de sécurité
+      const textBlock = last24.map(
+        m => `[${m.time}] ${m.authorName || m.author || 'membre'}: ${m.body}`
+      ).join('\n');
+
+      const _fetch = await ensureFetch();
+      const res = await _fetch(OLLAMA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: process.env.ORAX_MODEL || 'mistral',
+          prompt:
+`Tu es un assistant de communauté.
+Voici les messages du jour (échantillon récent) :
+${textBlock}
+
+Fais un **résumé clair, structuré et motivant** :
+- Les 3-5 points clés
+- Mises en avant (projets, astuces, entraide)
+- Appel à l’action pour demain
+Réponds en français, style chaleureux et concis.`,
+          stream: false
+        })
+      });
+      const data = await res.json();
+      const summary = (data?.response || '').trim();
+      if (summary) {
+        await client.sendMessage(group.id._serialized, "📌 *Résumé du jour* \n" + summary);
+        console.log('🧾 Résumé du jour envoyé.');
+      }
+    } catch (e) {
+      console.error('❌ Erreur résumé du jour :', e.message);
+    }
+  }, { timezone: TZ });
+
+  // Watchdog : silence & questions sans réponse — toutes les 5 minutes
+  setInterval(async () => {
+    if (!group) return;
+    // Silence
+    try {
+      const gid = group.id._serialized;
+      const last = lastActivity.get(gid);
+      const nowTs = Date.now();
+      const lastNudge = lastSilenceNudgeAt.get(gid) || 0;
+      if (last && withinActiveHours() &&
+          nowTs - last > ms(SILENCE_MINUTES) &&
+          nowTs - lastNudge > ms(SILENCE_NUDGE_COOLDOWN_MIN)) {
+        const prompts = [
+          "🧠 Question flash : quel est votre défi IA du moment ?",
+          "💡 Partagez une astuce ou ressource utile pour la communauté.",
+          "🚀 Qui bosse sur un projet aujourd’hui ? Dites-nous en 1 phrase !",
+          "📚 Une doc ou un repo à recommander cette semaine ?"
+        ];
+        const msg = "[ orax - bot ] " + prompts[Math.floor(Math.random()*prompts.length)];
+        await client.sendMessage(gid, msg);
+        lastSilenceNudgeAt.set(gid, nowTs);
+        console.log('🤖 Relance silence envoyée.');
+      }
+    } catch (e) {
+      console.error('⚠️ Silence-check error:', e.message);
+    }
+
+    // Questions sans réponse
+    try {
+      const gid = group.id?._serialized || (group.id || {}).user;
+      if (!gid) return;
+      const list = pendingQuestions.get(gid) || [];
+      if (list.length === 0) return;
+
+      const stillPending = [];
+      for (const q of list) {
+        const elapsedMin = (Date.now() - q.askedAt) / 60000;
+        if (elapsedMin >= QUESTION_GRACE_MINUTES) {
+          // Relance douce
+          const contact = await client.getContactById(q.author);
+          const mention = contact ? `@${(contact.number || contact.id.user)}` : '';
+          const chat = await client.getChatById(gid);
+          await chat.sendMessage(
+            `👀 Quelqu’un peut aider ${mention} sur sa question ?\n> ${q.body}`,
+            { mentions: contact ? [contact] : [] }
+          );
+          console.log('🔁 Relance question sans réponse.');
+        } else {
+          stillPending.push(q);
+        }
+      }
+      pendingQuestions.set(gid, stillPending);
+    } catch (e) {
+      console.error('⚠️ Pending-questions error:', e.message);
+    }
+  }, 5 * 60 * 1000);
+});
+
+// Auth & disconnect
+client.on('auth_failure', msg => console.error('❌ Échec d’authentification :', msg));
+client.on('disconnected', reason => console.log('🔌 Déconnecté :', reason));
+
+// --- Initialisation ---
+client.initialize();
+
+// --- Gestion des messages ---
+client.on('message', async message => {
+  try {
+    if (message.fromMe) return; // anti-boucle
+
+    const chat = await message.getChat();
+    const gid = chat.id._serialized;
+
+    // Met à jour activité
+    lastActivity.set(gid, Date.now());
+
+    // Journalisation & contexte
+    const contact = await message.getContact();
+    const authorName = (contact?.pushname || contact?.name || '').trim();
+    const entry = {
+      time: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+      author: message.author || message.from,
+      authorName,
+      body: message.body
+    };
+    appendHistory(gid, entry);
+    pushContext(gid, { from: authorName || message.author, body: message.body, ts: Date.now() });
+
+    // Détection spam léger
+    antiSpamL1(gid, message, entry);
+
+    // Détection question
+    if (/\?\s*$/.test(message.body) && !message.hasQuotedMsg) {
+      const arr = ensureArray(pendingQuestions, gid);
+      arr.push({
+        id: message.id._serialized,
+        author: message.author || contact?.id?._serialized || message.from,
+        body: message.body,
+        askedAt: Date.now()
+      });
+    } else if (message.hasQuotedMsg) {
+      // Si quelqu’un répond en citant, on peut supprimer la question des "pending"
+      try {
+        const quoted = await message.getQuotedMessage();
+        const arr = pendingQuestions.get(gid) || [];
+        const idx = arr.findIndex(q => q.id === quoted.id._serialized);
+        if (idx >= 0) arr.splice(idx, 1);
+        pendingQuestions.set(gid, arr);
+      } catch {}
+    }
+
+    // Commandes
+    if (message.body.startsWith('!ask')) {
+      const question = message.body.replace(/^!ask\s*/i, '').trim();
+      if (!question) return message.reply("❌ Pose une vraie question après !ask");
+      const reply = await handleAskWithContext(gid, question);
+      return message.reply("[ orax - bot ] 🤖 " + reply);
+    }
+
+    if (/^!resume\b/i.test(message.body)) {
+      const hours = Number((message.body.split(/\s+/)[1] || '24'));
+      const txt = buildResumePromptFromHistory(gid, hours);
+      const ans = await askOllama(
+        `Tu es un assistant de communauté. Résume les échanges ci-dessous (dernières ${hours}h) :
+${txt}
+
+Fais un résumé clair (points clés, décisions, ressources) + une suggestion d’action.`
+      );
+      return message.reply("📌 *Résumé demandé*\n" + ans);
+    }
+
+    if (/^!note\b/i.test(message.body)) {
+      const note = message.body.replace(/^!note\s*/i, '').trim();
+      if (!note) return message.reply("❌ Utilisation : !note <texte>");
+      const noteFile = path.join(DATA_DIR, 'notes.json');
+      let notes = [];
+      if (fs.existsSync(noteFile)) {
+        try { notes = JSON.parse(fs.readFileSync(noteFile, 'utf-8')); } catch {}
+      }
+      notes.push({ at: new Date().toISOString(), group: gid, by: authorName, note });
+      saveJSONSafe(noteFile, notes);
+      return message.reply("📝 Noté !");
+    }
+
+  } catch (e) {
+    console.error('⚠️ message handler error:', e.message);
+  }
+});
+
+// --- Événements groupe : arrivée de nouveaux membres ---
+client.on('group_join', async notification => {
+  try {
+    const chat = await notification.getChat();
+    const newId = notification.id.participant;
+    const contact = await client.getContactById(newId);
+    const mention = contact ? [contact] : [];
+    await chat.sendMessage(
+      `👋 Bienvenue @${(contact?.number || contact?.id?.user || 'membre')} dans *${chat.name}* !\n` +
+      `Présente-toi en 1 phrase et dis-nous ce qui t’intéresse. 🚀`,
+      { mentions: mention }
+    );
+  } catch (e) {
+    console.error('⚠️ group_join error:', e.message);
+  }
+});
+
+// --- Fonctions IA --- //
+async function handleAskWithContext(groupId, question) {
+  const ctx = recentContext.get(groupId) || [];
+  const snippet = ctx.slice(-MAX_CONTEXT_MESSAGES)
+    .map(m => `- ${m.from}: ${m.body}`).join('\n');
+
+  const prompt =
+`Contexte récent du groupe (extraits) :
+${snippet || '(contexte léger)'}
+Question :
+${question}
+
+Réponds de façon utile, concise, en français, avec étapes si pertinent.`;
+
+  const answer = await askOllama(prompt);
+  return answer || "Désolé, je n’ai pas pu générer de réponse.";
+}
+
+async function askOllama(prompt) {
+  try {
+    const _fetch = await ensureFetch();
+    const res = await _fetch(OLLAMA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: process.env.ORAX_MODEL || 'mistral',
+        prompt,
+        stream: false
+      })
+    });
+    const data = await res.json();
+    return (data?.response || '').trim();
+  } catch (e) {
+    console.error('❌ Erreur appel Ollama :', e.message);
+    return '';
+  }
+}
+
+function buildResumePromptFromHistory(groupId, hours = 24) {
+  const cutoff = Date.now() - hours * 3600000;
+  let collected = [];
+  // Charger l’historique d’aujourd’hui + (optionnel) d’hier si heures > depuis minuit
+  const files = [historyFileFor(), historyFileFor(new Date(Date.now()-86400000).toISOString().slice(0,10))];
+  for (const file of files) {
+    if (!fs.existsSync(file)) continue;
+    try {
+      const day = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      const arr = day[groupId] || [];
+      collected.push(...arr);
+    } catch {}
+  }
+  collected = collected.filter(x => {
+    const dt = new Date(`${todayISO()}T${x.time}:00`);
+    // fallback grossier si date différente : on garde (mieux vaut trop que pas assez)
+    return isFinite(dt.getTime()) ? (Date.now() - dt.getTime() <= hours*3600000) : true;
+  }).slice(-600);
+
+  return collected.map(m => `[${m.time}] ${m.authorName || 'membre'}: ${m.body}`).join('\n');
+}
+
+// --- Anti-spam léger --- //
+function antiSpamL1(groupId, message, entry) {
+  try {
+    const key = `${groupId}|${message.author || message.from}`;
+    const rec = spamTracker.get(key) || { lastBodies: [], lastTs: [] };
+    // Pousse info
+    rec.lastBodies.push(entry.body);
+    rec.lastTs.push(Date.now());
+    if (rec.lastBodies.length > 6) rec.lastBodies.shift();
+    if (rec.lastTs.length > 6) rec.lastTs.shift();
+
+    // Heuristique : 4 messages en < 10s ou 3 répétitions quasi identiques
+    const nowTs = Date.now();
+    const recent = rec.lastTs.filter(t => nowTs - t < 10000).length;
+    const duplicates = (() => {
+      const b = rec.lastBodies.slice(-4);
+      const norm = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const counts = {};
+      b.forEach(x => counts[norm(x)] = (counts[norm(x)] || 0) + 1);
+      return Math.max(...Object.values(counts));
+    })();
+
+    const alreadyWarnedRecently = rec.warnedAt && (nowTs - rec.warnedAt < 600000); // 10 min
+
+    if (!alreadyWarnedRecently && (recent >= 4 || duplicates >= 3)) {
+      // Avertissement doux en réponse
+      message.reply("🤝 Doucement svp, évitons le spam pour laisser chacun s’exprimer. Merci !");
+      rec.warnedAt = nowTs;
+    }
+
+    spamTracker.set(key, rec);
+  } catch {}
+}
+
+// --- Sécurité process ---
+process.on('unhandledRejection', err => console.error('UNHANDLED REJECTION:', err));
+process.on('uncaughtException', err => console.error('UNCAUGHT EXCEPTION:', err));

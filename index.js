@@ -70,10 +70,10 @@ client.on('qr', qr => {
 client.on('ready', () => {
   console.log('✅ Client WhatsApp prêt !');
 
-  // Envoi quotidien à 8h GMT
-  cron.schedule('0 7 * * *', async () => {
+  // Envoi quotidien à 08h01 GMT
+  cron.schedule('00 08 * * *', async () => {
     try {
-      const message = '[ orax - bot ] ' + messages[Math.floor(Math.random() * messages.length)];
+      const message = '[ orax - bot ] ' + messages[Math.floor(Math.random() * messages.length)]+ '\n Vous pouvez poser des questions precedeés de !ask et je vous repond !';
       const chats = await client.getChats();
       const group = chats.find(chat => chat.isGroup && chat.name === groupName);
 
@@ -137,7 +137,7 @@ client.on('message', async message => {
       await message.reply("[ orax - bot ]🤖 " + data.response.trim());
     } catch (err) {
       console.error("Erreur:", err);
-      await message.reply("❌ Erreur en appelant Mistral.");
+      await message.reply("❌ Erreur en appelant [orax bot] !.");
     }
   }else if (!message.fromMe) { // mettre tout message recu dans un fichier json
   }
